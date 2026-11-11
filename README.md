@@ -3,8 +3,8 @@
 ![Lennard-Jones particle animation](gallery/lennard-jones.gif)
 
 Terminal-only molecular and data visualizations for SSH and local terminals.
-The animation above is an illustrative Lennard-Jones simulation, not a
-terminal screenshot; the actual terminal modes are shown below.
+The animation above uses the viewer's half-block renderer; the terminal cells
+were converted to images for the GIF.
 
 ## Install and quickstart
 
@@ -93,7 +93,10 @@ The [gallery](gallery/) includes a [Lennard-Jones animation](gallery/lennard-jon
 argon atoms in a 2D periodic box, ASE's Lennard-Jones potential (ε = 0.0103 eV,
 σ = 3.4 Å, smooth cutoff = 10.2 Å), velocity Verlet at 3 fs, and initial
 60 K Maxwell-Boltzmann velocities with seed 42. The z and center-of-mass
-motion are removed; the animation samples every 30 fs.
+motion are removed. The animation samples every 39 fs and shows actual
+`Renderer.render_lit` half-block output with a custom argon colour and radius.
+The energy/temperature graphs are illustrative plots generated separately,
+not output from the terminal plotter.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for tests and checks. MolTUI is an
 inspiration for terminal molecular visualization; this implementation is
