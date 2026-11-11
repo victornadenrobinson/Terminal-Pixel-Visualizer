@@ -3,16 +3,24 @@ requires = ["setuptools>=78.1.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "terminal-pixel-visualizer"
+name = "termview"
 version = "0.1.0"
 description = "Terminal-only molecular and data visualizations"
-requires-python = ">=3.9"
-dependencies = ["numpy", "ase"]
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+ase = ["ase>=3.22"]
+dev = ["ruff>=0.11.13", "mypy>=1.15", "pytest>=8.3"]
 
 [project.scripts]
-termview = "termview:main"
-termplot = "termplot:main"
-toy-live = "toy_live:main"
+termview = "termview.cli:main"
+termplot = "termview.plot:main"
 
-[tool.setuptools]
-py-modules = ["mdview", "mdview_lit", "termctl", "termplot", "termview", "toy_live"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+check_untyped_defs = false

@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Braille scatter plots, histograms and four-panel reports for numeric tables."""
+
 import argparse
 import math
 import sys
 
 import numpy as np
 
+from .config import RenderConfig
+
 BITS = np.array([[1, 8], [2, 16], [4, 32], [64, 128]], dtype=np.uint8)
-PALETTE = (31, 32, 33, 34, 35, 36, 91, 92, 93, 94, 95, 96, 37, 90, 97, 30)
+PALETTE = RenderConfig().palette
 
 
 def nice(lo, hi, count=5):
@@ -15,7 +18,7 @@ def nice(lo, hi, count=5):
     if not np.isfinite([lo, hi]).all() or hi < lo or count < 2:
         raise ValueError("invalid tick range")
     if hi == lo:
-        delta = abs(lo) * .05 or 1.
+        delta = abs(lo) * 0.05 or 1.0
         lo, hi = lo - delta, hi + delta
     raw = (hi - lo) / (count - 1)
     power = 10 ** math.floor(math.log10(raw))
@@ -41,7 +44,9 @@ class Canvas:
 
     def line(self, x0, y0, x1, y1, color=0):
         n = max(abs(int(x1) - int(x0)), abs(int(y1) - int(y0))) + 1
-        self.dots(np.rint(np.linspace(x0, x1, n)), np.rint(np.linspace(y0, y1, n)), color)
+        self.dots(
+            np.rint(np.linspace(x0, x1, n)), np.rint(np.linspace(y0, y1, n)), color
+        )
 
     def rows_text(self, color=True):
         rows = []
@@ -60,7 +65,7 @@ class Canvas:
 def _range(values):
     lo, hi = float(np.min(values)), float(np.max(values))
     if lo == hi:
-        pad = abs(lo) * .05 or 1
+        pad = abs(lo) * 0.05 or 1
         return lo - pad, hi + pad
     return lo, hi
 
@@ -101,12 +106,12 @@ def plot(x, y, width, height, xlabel="x", ylabel="y", groups=None, connect=False
     xticks = nice(xmin, xmax)
     tickline = [" "] * canvas.width
     for tick in xticks:
-        text = f"{tick:.3g}"[:canvas.width]
+        text = f"{tick:.3g}"[: canvas.width]
         pos = round((tick - xmin) / (xmax - xmin) * (canvas.width - 1))
         start = min(max(0, pos - len(text) // 2), max(0, canvas.width - len(text)))
-        tickline[start:start + len(text)] = text
+        tickline[start : start + len(text)] = text
     lines.append(" " * 9 + "".join(tickline))
-    lines.append(" " * 9 + xlabel[:canvas.width])
+    lines.append(" " * 9 + xlabel[: canvas.width])
     return lines
 
 
@@ -130,17 +135,25 @@ def main(argv=None):
     sub = p.add_subparsers(dest="command", required=True)
     for name in ("scatter", "hist", "report"):
         s = sub.add_parser(name)
-        s.add_argument("file", help="whitespace or comma-separated numeric table; '-' for stdin")
+        s.add_argument(
+            "file", help="whitespace or comma-separated numeric table; '-' for stdin"
+        )
         s.add_argument("--x", default="0", help="column index (or name with --header)")
         s.add_argument("--y", default="1", help="column index (or name with --header)")
         s.add_argument("--color", help="column used to group points by color")
         s.add_argument("--clip", type=float, nargs=2, metavar=("LO", "HI"))
         s.add_argument("--width", type=int, default=80)
         s.add_argument("--height", type=int, default=20)
-        s.add_argument("--header", action="store_true", help="first row contains column names")
+        s.add_argument(
+            "--header", action="store_true", help="first row contains column names"
+        )
         if name in ("hist", "report"):
             s.add_argument("--bins", type=int, default=20)
-            s.add_argument("--centre", action="store_true", help="center histogram data on its mean")
+            s.add_argument(
+                "--centre",
+                action="store_true",
+                help="center histogram data on its mean",
+            )
     a = p.parse_args(argv)
     if a.width < 12 or a.height < 5 or (hasattr(a, "bins") and a.bins < 1):
         p.error("width >= 12, height >= 5 and bins >= 1 are required")
@@ -154,10 +167,23 @@ def main(argv=None):
             if source is not sys.stdin:
                 source.close()
         from io import StringIO
-        first = next((line for line in text.splitlines() if line.strip() and not line.startswith("#")), "")
-        data = np.genfromtxt(StringIO(text), delimiter="," if "," in first else None,
-                             names=True if a.header else None, dtype=None,
-                             encoding="utf-8", ndmin=1 if a.header else 2)
+
+        first = next(
+            (
+                line
+                for line in text.splitlines()
+                if line.strip() and not line.startswith("#")
+            ),
+            "",
+        )
+        data = np.genfromtxt(
+            StringIO(text),
+            delimiter="," if "," in first else None,
+            names=True if a.header else None,
+            dtype=None,
+            encoding="utf-8",
+            ndmin=1 if a.header else 2,
+        )
         x = _column(data, a.x).astype(float)
         y = _column(data, a.y).astype(float) if a.command != "hist" else None
         groups = _column(data, a.color) if a.color else None
@@ -167,8 +193,10 @@ def main(argv=None):
         if a.clip:
             valid &= (x >= a.clip[0]) & (x <= a.clip[1])
         x = x[valid]
-        if y is not None: y = y[valid]
-        if groups is not None: groups = groups[valid]
+        if y is not None:
+            y = y[valid]
+        if groups is not None:
+            groups = groups[valid]
         if not len(x):
             raise ValueError("no finite data after filtering")
 
@@ -188,12 +216,20 @@ def main(argv=None):
                 raise ValueError("report requires width >= 25 and height >= 10")
             left, right = (a.width - 1) // 2, a.width // 2
             top, bottom = a.height // 2, a.height - a.height // 2
-            panels = [plot(x, y, left, top, a.x, a.y, groups),
-                      hist(x, right, top, a.x),
-                      plot(np.arange(len(x)), x, left, bottom, "sample", a.x, connect=True),
-                      hist(y, right, bottom, a.y)]
-            lines = [l + " " + r for l, r in zip(panels[0], panels[1])]
-            lines += [l + " " + r for l, r in zip(panels[2], panels[3])]
+            panels = [
+                plot(x, y, left, top, a.x, a.y, groups),
+                hist(x, right, top, a.x),
+                plot(np.arange(len(x)), x, left, bottom, "sample", a.x, connect=True),
+                hist(y, right, bottom, a.y),
+            ]
+            lines = [
+                left_row + " " + right_row
+                for left_row, right_row in zip(panels[0], panels[1])
+            ]
+            lines += [
+                left_row + " " + right_row
+                for left_row, right_row in zip(panels[2], panels[3])
+            ]
         print("\n".join(lines))
     except (ValueError, OSError) as exc:
         p.error(str(exc))
