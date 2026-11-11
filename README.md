@@ -37,6 +37,23 @@ state is restored on exit.
 This is a qualitative toy pair potential for observing proton motion and
 disorder, **not** a model for quantitative results.
 
+## Example gallery
+
+The [gallery](gallery/) contains illustrative output from a separate
+Lennard-Jones simulation:
+
+- [Animated particle motion](gallery/lennard-jones.gif)
+- [Initial particle snapshot](gallery/lennard-jones-snapshot.png)
+- [Energy and temperature graphs](gallery/lennard-jones-energy.png)
+
+The examples use 16 argon atoms in a 2D periodic box, ASE's Lennard-Jones
+potential (ε = 0.0103 eV, σ = 3.4 Å, smooth cutoff = 10.2 Å), and velocity
+Verlet with a 3 fs timestep. Initial velocities use a 60 K Maxwell-Boltzmann
+distribution with random seed 42, then their z and center-of-mass motion are
+removed. The animation samples every 30 fs. The PNG and GIF files are
+illustrations, not screenshots of the terminal renderer; the viewer itself
+does not require a graphical display.
+
 ## Plots
 
 ```sh
