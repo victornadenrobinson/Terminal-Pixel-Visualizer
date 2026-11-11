@@ -11,7 +11,7 @@ from ase.md.langevin import Langevin
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 from ase.neighborlist import neighbor_list
 
-from mdview import DiffPrinter, render, render3d
+from mdview import DiffPrinter, camera, render, render3d
 from mdview_lit import render_lit
 from termctl import Controls
 
@@ -157,9 +157,14 @@ def main(argv=None):
                 atoms.info["P"] = -np.mean(atoms.get_stress(include_ideal_gas=True)[:3]) / units.GPa
                 note = f"{a.phase}  target {a.T:.0f} K  P in GPa"
                 if fancy:
+                    direction = view
+                    if view is not None:
+                        right, up, forward = camera(atoms, view_dir=view)
+                        y, t = np.radians([yaw, tilt - a.tilt])
+                        direction = np.cos(t) * (np.cos(y) * forward + np.sin(y) * right) + np.sin(t) * up
                     kw = dict(yaw=yaw, tilt=tilt, step=dyn.nsteps, width=a.width,
                               height=a.height, note=note, bonds=not a.nobonds, box=not a.nobox,
-                              zoom=a.zoom * zoom, clip=a.clip, hi=a.hi, view_dir=view,
+                              zoom=a.zoom * zoom, clip=a.clip, hi=a.hi, view_dir=direction,
                               ortho=a.ortho or bool(view))
                     text = (render_lit(atoms, mode=a.lit_mode, ascii_only=a.ascii, **kw) if a.lit
                             else render3d(atoms, ascii_only=a.ascii, braille=a.braille, **kw))

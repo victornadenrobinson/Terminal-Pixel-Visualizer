@@ -30,7 +30,7 @@ def pack_half(pixels):
 def frame(head, cells):
     """Record a frame for DiffPrinter and return a full redraw."""
     width = len(cells[0]) if cells else 0
-    head = head[:width + 2].replace("\n", " ").replace("\x1b", "")
+    head = "".join(c if c.isprintable() else " " for c in head)[:width + 2]
     rows = [["│", *row, "\x1b[0m│"] for row in cells]
     LAST["head"] = head
     LAST["cells"] = [["┌" + "─" * width + "┐"], *rows, ["└" + "─" * width + "┘"]]

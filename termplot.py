@@ -156,7 +156,7 @@ def main(argv=None):
         from io import StringIO
         first = next((line for line in text.splitlines() if line.strip() and not line.startswith("#")), "")
         data = np.genfromtxt(StringIO(text), delimiter="," if "," in first else None,
-                             names=True if a.header else None, dtype=str,
+                             names=True if a.header else None, dtype=None,
                              encoding="utf-8", ndmin=1 if a.header else 2)
         x = _column(data, a.x).astype(float)
         y = _column(data, a.y).astype(float) if a.command != "hist" else None

@@ -1,5 +1,7 @@
 """Vectorized sphere and cylinder impostors for terminal molecular views."""
 import numpy as np
+from ase.data import covalent_radii
+from ase.data.colors import jmol_colors
 
 from mdview import (LAST, O_COLOR, H_COLOR, _header, _rgb, bonds_for,
                     box_corners, camera, frame, pack_half)
@@ -70,7 +72,8 @@ def render_lit(atoms, yaw=0, tilt=18, step=0, width=96, height=30, note="",
     span = max(zmax - zmin, 1e-9)
     low, high = max(zmin + clip * span, zmax - hi * span), zmax
     visible = (points[:, 2] >= low) & (points[:, 2] <= high)
-    visible &= ((atoms.numbers == 8) & show_O) | ((atoms.numbers == 1) & show_H)
+    visible &= ((atoms.numbers == 8) & show_O) | ((atoms.numbers == 1) & show_H) | (
+        (atoms.numbers != 8) & (atoms.numbers != 1))
 
     def raster(bounds, compute, color):
         x0, x1, y0, y1 = bounds
@@ -123,8 +126,9 @@ def render_lit(atoms, yaw=0, tilt=18, step=0, width=96, height=30, note="",
                          max(.6, scale * .075 * (factors[i] + factors[j]) / 2),
                          np.array([160, 165, 165]))
     for i in np.flatnonzero(visible):
-        radius_a = .30 if atoms.numbers[i] == 8 else .17
-        radius = max(.65, radius_a * scale * factors[i])
+        number = atoms.numbers[i]
+        radius_a = .30 if number == 8 else .17 if number == 1 else min(.7, covalent_radii[number] * .45)
+        radius = max(.75, radius_a * scale * factors[i])
         cx, cy = screen[i]
         def sphere(x, y):
             dx, dy = (x - cx) / radius, -(y - cy) / radius
@@ -132,5 +136,5 @@ def render_lit(atoms, yaw=0, tilt=18, step=0, width=96, height=30, note="",
             nz = np.sqrt(np.maximum(0, 1 - d2))
             return d2 <= 1, points[i, 2] + radius_a * nz, np.stack((dx, dy, nz), axis=-1)
         raster((cx - radius, cx + radius, cy - radius, cy + radius), sphere,
-               O_COLOR if atoms.numbers[i] == 8 else H_COLOR)
+               O_COLOR if number == 8 else H_COLOR if number == 1 else jmol_colors[number] * 255)
     return frame(_header(atoms, step, note), _pack(image, mode, ascii_only))
