@@ -22,6 +22,8 @@ def _pack(pixels, mode, ascii_only=False):
     dots = blocks.any(axis=-1)
     bits = _BITS if mode == "braille" else np.array([[1, 2], [4, 8]])
     masks = (dots * bits).sum(axis=(2, 3))
+    if ascii_only:
+        return [["#" if mask else " " for mask in row] for row in masks]
     colors = blocks.reshape(h // rows, w // 2, rows * 2, 3)
     # Choose the most frequent non-black RGB value in each cell.
     eq = (colors[:, :, :, None, :] == colors[:, :, None, :, :]).all(axis=-1)
@@ -66,7 +68,7 @@ def render_lit(atoms, yaw=0, tilt=18, step=0, width=96, height=30, note="",
     box_screen, _ = project(box_points)
     zmin, zmax = box_points[:, 2].min(), box_points[:, 2].max()
     span = max(zmax - zmin, 1e-9)
-    low, high = zmin + clip * span, zmin + hi * span
+    low, high = max(zmin + clip * span, zmax - hi * span), zmax
     visible = (points[:, 2] >= low) & (points[:, 2] <= high)
     visible &= ((atoms.numbers == 8) & show_O) | ((atoms.numbers == 1) & show_H)
 

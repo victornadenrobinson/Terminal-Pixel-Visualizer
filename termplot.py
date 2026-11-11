@@ -101,7 +101,7 @@ def plot(x, y, width, height, xlabel="x", ylabel="y", groups=None, connect=False
     xticks = nice(xmin, xmax)
     tickline = [" "] * canvas.width
     for tick in xticks:
-        text = f"{tick:.3g}"
+        text = f"{tick:.3g}"[:canvas.width]
         pos = round((tick - xmin) / (xmax - xmin) * (canvas.width - 1))
         start = min(max(0, pos - len(text) // 2), max(0, canvas.width - len(text)))
         tickline[start:start + len(text)] = text
@@ -156,9 +156,10 @@ def main(argv=None):
         from io import StringIO
         first = next((line for line in text.splitlines() if line.strip() and not line.startswith("#")), "")
         data = np.genfromtxt(StringIO(text), delimiter="," if "," in first else None,
-                             names=True if a.header else None, ndmin=1 if a.header else 2)
-        x = _column(data, a.x)
-        y = _column(data, a.y) if a.command != "hist" else None
+                             names=True if a.header else None, dtype=str,
+                             encoding="utf-8", ndmin=1 if a.header else 2)
+        x = _column(data, a.x).astype(float)
+        y = _column(data, a.y).astype(float) if a.command != "hist" else None
         groups = _column(data, a.color) if a.color else None
         valid = np.isfinite(x)
         if y is not None:

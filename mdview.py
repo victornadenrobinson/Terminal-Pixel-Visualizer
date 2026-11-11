@@ -53,7 +53,7 @@ class DiffPrinter:
         for y, row in enumerate(cells):
             for x, cell in enumerate(row):
                 if y >= len(self.cells) or x >= len(self.cells[y]) or cell != self.cells[y][x]:
-                    out.append(f"\x1b[{y + 2};{x + 1}H{cell}")
+                    out.append(f"\x1b[{y + 2};{x + 1}H\x1b[0m{cell}")
         if len(cells) != len(self.cells) or any(
                 len(a) != len(b) for a, b in zip(cells, self.cells)):
             # Clear stale content when the frame shrinks.
