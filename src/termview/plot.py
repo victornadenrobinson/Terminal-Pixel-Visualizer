@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Braille scatter plots, histograms and four-panel reports for numeric tables."""
 
 import argparse
@@ -175,12 +174,11 @@ def main(argv: list[str] | None = None) -> None:
     if a.clip and a.clip[0] >= a.clip[1]:
         p.error("--clip requires LO < HI")
     try:
-        source = sys.stdin if a.file == "-" else open(a.file, encoding="utf-8")
-        try:
-            text = source.read()
-        finally:
-            if source is not sys.stdin:
-                source.close()
+        if a.file == "-":
+            text = sys.stdin.read()
+        else:
+            with open(a.file, encoding="utf-8") as source:
+                text = source.read()
         from io import StringIO
 
         first = next(

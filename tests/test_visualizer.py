@@ -9,6 +9,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 from ase import Atoms
@@ -20,8 +21,7 @@ except ImportError:
     pty = termios = None
 
 from examples.toy_live import ToyPotential, build
-from termview import ElementStyle, RenderConfig, Renderer
-from termview import cli, pack, plot, render2d
+from termview import ElementStyle, RenderConfig, Renderer, cli, pack, plot, render2d
 from termview.controls import Controls
 
 
@@ -129,6 +129,14 @@ class RenderingTests(unittest.TestCase):
 
 
 class PlotTests(unittest.TestCase):
+    def test_hist_reads_stdin_without_closing_it(self):
+        source = io.StringIO("1\n2\n3\n")
+        output = io.StringIO()
+        with patch("sys.stdin", source), contextlib.redirect_stdout(output):
+            plot.main(["hist", "-", "--width", "30", "--height", "8"])
+        self.assertFalse(source.closed)
+        self.assertIn("count", output.getvalue())
+
     def test_canvas_and_ticks(self):
         canvas = plot.Canvas(1, 1)
         canvas.dots([0, 1, 0], [0, 1, 3])

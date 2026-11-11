@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
 """Live toy molecular dynamics in a 24-bit-color terminal; not for quantitative science."""
 
 import argparse
 import time
+from typing import ClassVar
 
 import numpy as np
 from ase import Atoms, units
@@ -19,7 +19,7 @@ from termview.render2d import camera
 class ToyPotential(Calculator):
     """Short-range pair potential for qualitative structural motion."""
 
-    implemented_properties = ["energy", "forces", "stress"]
+    implemented_properties: ClassVar[list[str]] = ["energy", "forces", "stress"]
 
     def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
         super().calculate(atoms, properties, system_changes)
@@ -217,21 +217,21 @@ def main(argv=None):
                             np.cos(t) * (np.cos(y) * forward + np.sin(y) * right)
                             + np.sin(t) * up
                         )
-                    kw = dict(
-                        yaw=yaw,
-                        tilt=tilt,
-                        step=dyn.nsteps,
-                        width=a.width,
-                        height=a.height,
-                        note=note,
-                        bonds=not a.nobonds,
-                        box=not a.nobox,
-                        zoom=a.zoom * zoom,
-                        clip=a.clip,
-                        hi=a.hi,
-                        view_dir=direction,
-                        ortho=a.ortho or bool(view),
-                    )
+                    kw = {
+                        "yaw": yaw,
+                        "tilt": tilt,
+                        "step": dyn.nsteps,
+                        "width": a.width,
+                        "height": a.height,
+                        "note": note,
+                        "bonds": not a.nobonds,
+                        "box": not a.nobox,
+                        "zoom": a.zoom * zoom,
+                        "clip": a.clip,
+                        "hi": a.hi,
+                        "view_dir": direction,
+                        "ortho": a.ortho or bool(view),
+                    }
                     text = (
                         renderer.render_lit(
                             atoms, mode=a.lit_mode, ascii_only=a.ascii, **kw

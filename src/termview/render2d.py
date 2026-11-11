@@ -81,17 +81,17 @@ class DiffPrinter:
                     or cell != self.cells[y][x]
                 ):
                     out.append(f"\x1b[{y + 2};{x + 1}H\x1b[0m{cell}")
-        if len(cells) != len(self.cells) or any(
-            len(a) != len(b) for a, b in zip(cells, self.cells)
+        if self.cells and (
+            len(cells) != len(self.cells)
+            or any(len(a) != len(b) for a, b in zip(cells, self.cells))
         ):
             # Clear stale content when the frame shrinks.
-            if self.cells:
-                out = [
-                    "\x1b[2J\x1b[H\x1b[0m"
-                    + head
-                    + "\n"
-                    + "\n".join("".join(row) + "\x1b[0m" for row in cells)
-                ]
+            out = [
+                "\x1b[2J\x1b[H\x1b[0m"
+                + head
+                + "\n"
+                + "\n".join("".join(row) + "\x1b[0m" for row in cells)
+            ]
         if out:
             self.stream.write("".join(out) + "\x1b[0m")
             self.stream.flush()

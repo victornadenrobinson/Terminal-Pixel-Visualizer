@@ -1,6 +1,7 @@
 """Vectorized sphere and cylinder impostors for terminal molecular views."""
 
 import numpy as np
+
 from .config import RenderConfig
 from .pack import pack
 from .render2d import _header, bonds_for, box_corners, camera, frame
@@ -51,7 +52,7 @@ def render_lit(
     center = np.asarray(atoms.cell).sum(axis=0) / 2
     points = (atoms.positions - center) @ basis.T
     box_points = (corners - center) @ basis.T
-    extent = max(np.linalg.norm(corners - center, axis=1).max(), 1e-6)
+    extent = max(np.max(np.linalg.norm(corners - center, axis=1)), 1e-6)
     scale = min(w, h) * 0.45 * zoom / extent
     distance = 4 * extent
 
@@ -159,20 +160,23 @@ def render_lit(
                     max(0.6, scale * 0.075 * (factors[i] + factors[j]) / 2),
                     np.array([160, 165, 165]),
                 )
-    for i in np.flatnonzero(visible):
+    for index in np.flatnonzero(visible):
+        i = int(index)
         number = atoms.numbers[i]
         style = config.element(number)
         radius_a = style.radius
         radius = max(0.75, radius_a * scale * factors[i])
         cx, cy = screen[i]
 
-        def sphere(x, y):
+        def sphere(
+            x, y, cx=cx, cy=cy, radius=radius, z=points[i, 2], radius_a=radius_a
+        ):
             dx, dy = (x - cx) / radius, -(y - cy) / radius
             d2 = dx * dx + dy * dy
             nz = np.sqrt(np.maximum(0, 1 - d2))
             return (
                 d2 <= 1,
-                points[i, 2] + radius_a * nz,
+                z + radius_a * nz,
                 np.stack((dx, dy, nz), axis=-1),
             )
 
