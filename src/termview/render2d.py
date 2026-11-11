@@ -64,10 +64,11 @@ class DiffPrinter:
     def __init__(self, renderer: Renderer, stream=None):
         self.renderer = renderer
         self.stream = stream or sys.stdout
-        self.head = None
+        self.head: str | None = None
         self.cells: list[list[str]] = []
 
-    def draw(self):
+    def draw(self) -> None:
+        """Write changed cells from the associated renderer."""
         head, cells = self.renderer.head, self.renderer.cells
         out = []
         if head != self.head:
@@ -107,7 +108,7 @@ def render(
     note="",
     atom_scale=None,
     renderer=None,
-):
+) -> str:
     """Render an x–y slice of any ASE-compatible atomic structure."""
     if width < 1 or height < 1 or slab < 0:
         raise ValueError("width and height must be positive and slab non-negative")
@@ -143,7 +144,8 @@ def render(
     )
 
 
-def camera(atoms, yaw=0, tilt=18, view_dir=None):
+def camera(atoms, yaw: float = 0, tilt: float = 18, view_dir=None) -> np.ndarray:
+    """Construct an orthonormal camera basis for the selected direction."""
     if view_dir is not None:
         forward = np.asarray(view_dir, dtype=float)
         if forward.shape != (3,) or not np.any(forward):
@@ -165,13 +167,14 @@ def camera(atoms, yaw=0, tilt=18, view_dir=None):
     return np.stack((right, up, forward))
 
 
-def box_corners(atoms):
+def box_corners(atoms) -> np.ndarray:
+    """Return the eight corners of the structure's cell."""
     return np.array(list(itertools.product((0.0, 1.0), repeat=3))) @ np.asarray(
         atoms.cell
     )
 
 
-def bonds_for(atoms, config=None):
+def bonds_for(atoms, config: RenderConfig | None = None) -> list[tuple[int, int]]:
     """Estimate bonds from interatomic distances and configured radii."""
     config = config or RenderConfig()
     positions = atoms.positions
@@ -200,7 +203,7 @@ def render3d(
     ortho=False,
     braille=False,
     **kwargs,
-):
+) -> str:
     """Render an unlit perspective or orthographic structure."""
     from .raster import render_lit
 

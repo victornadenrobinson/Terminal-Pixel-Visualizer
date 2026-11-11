@@ -1,15 +1,23 @@
 import contextlib
 import io
 import os
-import pty
 import select
+import signal
+import subprocess
+import sys
 import tempfile
-import termios
+import time
 import unittest
 from pathlib import Path
 
 import numpy as np
 from ase import Atoms
+
+try:
+    import pty
+    import termios
+except ImportError:
+    pty = termios = None
 
 from examples.toy_live import ToyPotential, build
 from termview import ElementStyle, RenderConfig, Renderer
@@ -114,6 +122,11 @@ class RenderingTests(unittest.TestCase):
             cell = self.renderer.cells[8][16]
             self.assertIn("90;230;255", cell)
 
+    def test_invalid_light_direction(self):
+        renderer = Renderer(RenderConfig(light_direction=(0, 0, 0)))
+        with self.assertRaisesRegex(ValueError, "light direction"):
+            renderer.render_lit(self.atoms)
+
 
 class PlotTests(unittest.TestCase):
     def test_canvas_and_ticks(self):
@@ -186,6 +199,7 @@ class DynamicsTests(unittest.TestCase):
         self.assertEqual(len(build("fcc", 2, 2.12)), 96)
 
 
+@unittest.skipIf(pty is None, "pseudo-terminals unavailable")
 class ControlTests(unittest.TestCase):
     def test_mouse_keyboard_and_terminal_restore(self):
         master, slave = pty.openpty()
@@ -253,6 +267,68 @@ class DatasetTests(unittest.TestCase):
             self.assertEqual(lines[0]["version"], 2)
             self.assertEqual(len(lines), 5)
             self.assertIn("38;5;", lines[1][2])
+
+    def test_record_cannot_overwrite_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.xyz"
+            original = "1\n\nH 0 0 0\n"
+            path.write_text(original)
+            with (
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                cli.main([str(path), "--record", str(path)])
+            self.assertEqual(path.read_text(), original)
+
+    @unittest.skipIf(os.name == "nt", "POSIX signal test")
+    def test_follow_new_frames(self):
+        frame = "2\n\nO 0 0 0\nH 0 0 1\n"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "growing.xyz"
+            path.write_text(frame)
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "termview.cli",
+                    str(path),
+                    "--width",
+                    "30",
+                    "--height",
+                    "10",
+                    "--fps",
+                    "1000",
+                    "--follow",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            try:
+                output = b""
+
+                def wait_for_frames(count):
+                    nonlocal output
+                    deadline = time.monotonic() + 10
+                    while (
+                        output.count(b"2 atoms") < count and time.monotonic() < deadline
+                    ):
+                        if select.select([process.stdout], [], [], 0.1)[0]:
+                            output += os.read(process.stdout.fileno(), 65536)
+                    self.assertGreaterEqual(output.count(b"2 atoms"), count)
+
+                wait_for_frames(1)
+                with path.open("a") as source:
+                    source.write(frame)
+                wait_for_frames(2)
+                process.send_signal(signal.SIGINT)
+                remaining, error = process.communicate(timeout=10)
+                output += remaining
+                self.assertEqual(process.returncode, 0, error)
+                self.assertGreaterEqual(output.count(b"2 atoms"), 2)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.communicate()
 
 
 if __name__ == "__main__":

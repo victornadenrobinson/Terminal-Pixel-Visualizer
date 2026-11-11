@@ -1,80 +1,101 @@
-# Terminal Pixel Visualizer
+# termview
 
-View molecular structures, trajectories and numeric data over SSH in a
-24-bit-colour terminal (100×40 or larger recommended). The application uses
-NumPy and ASE; pip installs ASE's own dependencies as needed.
+![Lennard-Jones particle animation](gallery/lennard-jones.gif)
 
-```sh
-python -m pip install .
-termview XYZ.dataset
-```
+Terminal-only molecular and data visualizations for SSH and local terminals.
+The animation above is an illustrative Lennard-Jones simulation, not a
+terminal screenshot; the actual terminal modes are shown below.
 
-`termview` detects XYZ by its contents, including files with arbitrary
-extensions, and displays a lit molecular view. ASE `.traj`, `.json`, `.cif`
-and `.pdb` files are also supported. Multi-frame structures play in a terminal;
-redirected output contains the first frame. CSV and whitespace-separated
-numeric tables are shown as a scatter plot (or histogram for one column);
-the first row may contain column names. Use `--width` and `--height` to
-override the terminal size. Unsupported or malformed data produces an error.
-
-## Live toy MD
+## Install and quickstart
 
 ```sh
-toy-live --phase bcc --nrep 3 --T 3000 --vpa 2.4 --fps 12
-toy-live --lit --lit-mode braille --view 111 --ortho
-toy-live --view3d --spin 1 --delta
+python -m pip install '.[ase]'     # from this checkout
+termview examples/datasets/water.xyz
+termview examples/datasets/water-motion.extxyz --lit --mode braille
+termview examples/datasets/silicon.cif --record movie.cast
+termview examples/datasets/series.csv
 ```
 
-The default view is an x–y slab sweeping through the periodic box. `--view3d`
-enables the unlit 3D view and `--lit` enables shaded spheres and bonds.
-`--view 001`, `101` or `111` selects a crystallographic direction; `--clip`
-removes the back fraction, and `--hi` keeps the front fraction. See
-`toy-live --help` for the other controls. Drag or use arrow keys to rotate,
-wheel or +/- to zoom, `s` to toggle spin, space to pause, `r` to reset and
-`q` or Ctrl-C to quit. `--no-mouse` disables mouse reporting. The terminal
-state is restored on exit.
+NumPy is required. ASE is an optional extra required for molecular file formats
+and the toy simulation. The distribution is named `terminal-pixel-visualizer`;
+the command and Python package remain `termview`. `termview` detects XYZ by contents, including arbitrary
+extensions, and supports ASE XYZ/extxyz, CIF, VASP, PDB and trajectory files.
+CSV and whitespace-separated numeric tables become scatter plots, or a
+histogram for one column. The [example datasets](examples/datasets/) include
+molecules, materials, trajectories, and tables.
 
-This is a qualitative toy pair potential for observing proton motion and
-disorder, **not** a model for quantitative results.
+Terminal size and colour support are detected automatically; override with
+`--width`, `--height` and `--color truecolor|256|plain`. On a terminal,
+trajectories play at `--fps` (default 10); redirected output contains the first
+frame unless recording. `--follow` watches appended trajectory frames, and
+`--record FILE` writes an asciinema v2 cast. Drag or use arrow keys to rotate
+and press `q` or Ctrl-C to quit. Use `--no-mouse` to disable mouse reporting.
 
-## Example gallery
+| Mode | Packing | Example |
+| --- | --- | --- |
+| `half` | Two full-colour vertical pixels per cell | [Screenshot](gallery/mode-half.png) |
+| `quad` | Four quadrant pixels, one foreground colour | [Screenshot](gallery/mode-quad.png) |
+| `braille` | Eight dots, one foreground colour | [Screenshot](gallery/mode-braille.png) |
 
-The [gallery](gallery/) contains illustrative output from a separate
-Lennard-Jones simulation:
+Braille uses only **one colour per cell**, the most frequent colour among its
+lit dots. Quadrants have the same limitation. A font with block and braille
+glyphs is required. A 100×40 terminal or larger is recommended.
 
-- [Animated particle motion](gallery/lennard-jones.gif)
-- [Initial particle snapshot](gallery/lennard-jones-snapshot.png)
-- [Energy and temperature graphs](gallery/lennard-jones-energy.png)
+## Python library
 
-The examples use 16 argon atoms in a 2D periodic box, ASE's Lennard-Jones
-potential (ε = 0.0103 eV, σ = 3.4 Å, smooth cutoff = 10.2 Å), and velocity
-Verlet with a 3 fs timestep. Initial velocities use a 60 K Maxwell-Boltzmann
-distribution with random seed 42, then their z and center-of-mass motion are
-removed. The animation samples every 30 fs. The PNG and GIF files are
-illustrations, not screenshots of the terminal renderer; the viewer itself
-does not require a graphical display.
+```python
+from ase.io import read
+from termview import ElementStyle, RenderConfig, Renderer, DiffPrinter
 
-## Plots
+config = RenderConfig(elements={8: ElementStyle((255, 70, 60), 0.30, 2)})
+renderer = Renderer(config)
+atoms = read("examples/datasets/water.xyz")
+atoms.center(vacuum=3)  # supply a cell for a structure without one
+print(renderer.render_lit(atoms, width=80, height=25))
+printer = DiffPrinter(renderer)
+printer.draw()
+```
+
+Renderers accept ASE-compatible `Atoms` objects independently of their origin.
+The element table is configurable; defaults use common CPK colours, with a
+neutral fallback for unlisted elements. `Renderer` owns its frame state;
+multiple renderers do not share state. `termview.plot.Canvas` supplies braille
+dots, lines and rows, and `termplot` offers `scatter`, `hist` and `report`:
 
 ```sh
-termplot scatter data.csv --header --x time --y energy --color group
-termplot hist data.txt --x 0 --centre --bins 20
-termplot report data.csv --header --x time --y energy --width 100 --height 40
+termplot scatter examples/datasets/series.csv --header --x time --y energy --color phase
+termplot hist examples/datasets/single-column.txt --centre
+termplot report examples/datasets/series.csv --header --x time --y energy
 ```
 
-Input may be comma- or whitespace-separated; columns are zero-based unless
-`--header` supplies names. `--clip LO HI` filters the x column. For stdin use
-`-` as the filename. Plot colors are grouped into a 16-colour terminal palette.
+Columns are zero-based unless `--header` supplies names. `--clip LO HI` filters
+the x column; `--width` and `--height` control plot size.
 
-The lit renderer supports `half`, `quad` and `braille` packing. Braille has
-only **one colour per cell**, chosen as the most common colour among its lit
-dots, so neighbouring differently coloured atoms can lose colour detail.
-Quadrants also share one foreground colour. A terminal font with the relevant
-block and braille glyphs is required.
+## How it works
 
-## Python API and tests
+The lit renderer projects sphere impostors, reconstructs a surface normal at
+each covered pixel, and applies ambient, diffuse and Blinn–Phong specular
+lighting. A z-buffer resolves occlusion; bonds are rasterized as shaded
+cylinders. NumPy vectorizes pixel calculations. The 2D renderer draws a moving
+z-slab with dimmed out-of-slab atoms. Packing turns the pixel buffer into
+half-block, quadrant or braille characters; `DiffPrinter` can redraw changed
+cells only.
 
-`mdview.render`, `mdview.render3d` and `mdview_lit.render_lit` return ANSI
-frames and update the shared `mdview.LAST`; `mdview.DiffPrinter.draw()`
-prints only changed cells. `termplot.Canvas` supplies dot, line and text
-packing primitives. Run focused tests with `python -m unittest discover -s tests`.
+## Examples and development
+
+Run the standalone qualitative toy MD example with
+`python examples/toy_live.py --lit --steps 100`. It is for visualizing motion
+and disorder, **not** quantitative results.
+
+The [gallery](gallery/) includes a [Lennard-Jones animation](gallery/lennard-jones.gif),
+[initial snapshot](gallery/lennard-jones-snapshot.png) and
+[energy/temperature graphs](gallery/lennard-jones-energy.png). These use 16
+argon atoms in a 2D periodic box, ASE's Lennard-Jones potential (ε = 0.0103 eV,
+σ = 3.4 Å, smooth cutoff = 10.2 Å), velocity Verlet at 3 fs, and initial
+60 K Maxwell-Boltzmann velocities with seed 42. The z and center-of-mass
+motion are removed; the animation samples every 30 fs.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for tests and checks. MolTUI is an
+inspiration for terminal molecular visualization; this implementation is
+independently written. [MolTUI is MIT-licensed](https://github.com/kszenes/moltui/blob/master/LICENSE);
+its licence and copyright notice must be retained if its code is incorporated.

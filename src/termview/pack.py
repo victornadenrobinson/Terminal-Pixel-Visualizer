@@ -6,12 +6,12 @@ BITS = np.array([[1, 8], [2, 16], [4, 32], [64, 128]], dtype=np.uint16)
 QUAD = np.array(list(" ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"))
 
 
-def rgb(c) -> str:
+def rgb(c: np.ndarray) -> str:
     """Format an RGB value for a 24-bit terminal escape."""
     return f"{int(c[0])};{int(c[1])};{int(c[2])}"
 
 
-def pack_half(pixels):
+def pack_half(pixels: np.ndarray) -> list[list[str]]:
     """Pack a (2*height, width, 3) RGB image into terminal cells."""
     top, bottom = pixels[::2], pixels[1::2]
     return [
@@ -20,7 +20,7 @@ def pack_half(pixels):
     ]
 
 
-def pack(pixels, mode: str, ascii_only: bool = False):
+def pack(pixels: np.ndarray, mode: str, ascii_only: bool = False) -> list[list[str]]:
     """Pack a pixel array; braille and quadrants use one colour per cell."""
     if mode == "half" and not ascii_only:
         return pack_half(pixels)
@@ -28,7 +28,7 @@ def pack(pixels, mode: str, ascii_only: bool = False):
         occupied = pixels.reshape(pixels.shape[0] // 2, 2, pixels.shape[1], 3).any(
             axis=(1, 3)
         )
-        return [["#" if v else " " for v in row] for row in occupied]
+        return [["#" if v else " " for v in row] for row in occupied]  # type: ignore[union-attr]
     if mode not in ("braille", "quad"):
         raise ValueError("invalid packing mode")
     h, w = pixels.shape[:2]

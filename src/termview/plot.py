@@ -8,12 +8,10 @@ import sys
 import numpy as np
 
 from .config import RenderConfig
-
-BITS = np.array([[1, 8], [2, 16], [4, 32], [64, 128]], dtype=np.uint8)
-PALETTE = RenderConfig().palette
+from .pack import BITS
 
 
-def nice(lo, hi, count=5):
+def nice(lo: float, hi: float, count: int = 5) -> np.ndarray:
     """Return human-friendly tick locations covering a finite range."""
     if not np.isfinite([lo, hi]).all() or hi < lo or count < 2:
         raise ValueError("invalid tick range")
@@ -27,35 +25,41 @@ def nice(lo, hi, count=5):
 
 
 class Canvas:
-    def __init__(self, width, height):
+    """Braille dot canvas with a configurable terminal palette."""
+
+    def __init__(self, width: int, height: int, config: RenderConfig | None = None):
         if width < 1 or height < 1:
             raise ValueError("canvas dimensions must be positive")
         self.width, self.height = width, height
+        self.palette = (config or RenderConfig()).palette
         self.masks = np.zeros((height, width), dtype=np.uint8)
         self.colors = np.full((height, width), -1, dtype=int)
 
-    def dots(self, x, y, color=0):
+    def dots(self, x, y, color: int = 0) -> None:
+        """Set one or more pixel coordinates, ignoring coordinates outside the canvas."""
         x, y = np.broadcast_arrays(np.asarray(x, dtype=int), np.asarray(y, dtype=int))
         x, y = x.ravel(), y.ravel()
         valid = (x >= 0) & (x < self.width * 2) & (y >= 0) & (y < self.height * 4)
         x, y = x[valid], y[valid]
         np.bitwise_or.at(self.masks, (y // 4, x // 2), BITS[y % 4, x % 2])
-        self.colors[y // 4, x // 2] = int(color) % len(PALETTE)
+        self.colors[y // 4, x // 2] = int(color) % len(self.palette)
 
-    def line(self, x0, y0, x1, y1, color=0):
+    def line(self, x0: int, y0: int, x1: int, y1: int, color: int = 0) -> None:
+        """Draw a line between pixel coordinates."""
         n = max(abs(int(x1) - int(x0)), abs(int(y1) - int(y0))) + 1
         self.dots(
             np.rint(np.linspace(x0, x1, n)), np.rint(np.linspace(y0, y1, n)), color
         )
 
-    def rows_text(self, color=True):
+    def rows_text(self, color: bool = True) -> list[str]:
+        """Return packed terminal rows, optionally including palette escapes."""
         rows = []
         for masks, colors in zip(self.masks, self.colors):
             row = ""
             previous = -1
             for mask, index in zip(masks, colors):
                 if color and index != previous:
-                    row += f"\x1b[{PALETTE[index]}m" if index >= 0 else "\x1b[0m"
+                    row += f"\x1b[{self.palette[index]}m" if index >= 0 else "\x1b[0m"
                     previous = index
                 row += chr(0x2800 + int(mask)) if mask else " "
             rows.append(row + ("\x1b[0m" if color else ""))
@@ -70,7 +74,17 @@ def _range(values):
     return lo, hi
 
 
-def plot(x, y, width, height, xlabel="x", ylabel="y", groups=None, connect=False):
+def plot(
+    x,
+    y,
+    width: int,
+    height: int,
+    xlabel: str = "x",
+    ylabel: str = "y",
+    groups=None,
+    connect: bool = False,
+) -> list[str]:
+    """Create labelled braille plot rows for numeric data."""
     if width < 12 or height < 5:
         raise ValueError("plots require width >= 12 and height >= 5")
     x, y = np.asarray(x, float), np.asarray(y, float)
@@ -130,7 +144,8 @@ def _column(data, spec):
         raise ValueError(f"unknown column {spec!r}") from None
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
+    """Run the standalone plotting CLI."""
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
     for name in ("scatter", "hist", "report"):

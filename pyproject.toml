@@ -3,11 +3,13 @@ requires = ["setuptools>=78.1.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "termview"
+name = "terminal-pixel-visualizer"
 version = "0.1.0"
 description = "Terminal-only molecular and data visualizations"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.23"]
+readme = "README.md"
+license = {file = "LICENSE"}
 
 [project.optional-dependencies]
 ase = ["ase>=3.22"]

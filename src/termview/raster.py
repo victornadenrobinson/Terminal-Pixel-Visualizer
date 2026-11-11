@@ -28,7 +28,7 @@ def render_lit(
     depth_fade=True,
     ascii_only=False,
     renderer=None,
-):
+) -> str:
     """Render a 3D ASE-compatible structure using shaded sphere impostors."""
     if width < 1 or height < 1 or zoom <= 0 or mode not in ("half", "quad", "braille"):
         raise ValueError("invalid dimensions, zoom, or packing mode")
@@ -38,7 +38,10 @@ def render_lit(
         raise ValueError("atoms must have a nonzero cell")
     config = renderer.config if renderer is not None else RenderConfig()
     light_direction = np.asarray(config.light_direction, dtype=float)
-    light_direction /= np.linalg.norm(light_direction)
+    light_norm = np.linalg.norm(light_direction)
+    if not np.isfinite(light_norm) or light_norm == 0:
+        raise ValueError("light direction must be finite and nonzero")
+    light_direction /= light_norm
     px, py = (1, 2) if mode == "half" else (2, 4 if mode == "braille" else 2)
     w, h = width * px, height * py
     image = np.zeros((h, w, 3), dtype=np.uint8)
@@ -89,8 +92,12 @@ def render_lit(
         if light:
             diffuse = np.maximum(normal @ light_direction, 0)
             halfvec = light_direction + np.array([0.0, 0.0, 1.0])
-            halfvec /= np.linalg.norm(halfvec)
-            spec = np.maximum(normal @ halfvec, 0) ** config.shininess
+            half_norm = np.linalg.norm(halfvec)
+            spec = (
+                np.maximum(normal @ (halfvec / half_norm), 0) ** config.shininess
+                if half_norm > 1e-12
+                else np.zeros_like(diffuse)
+            )
             intensity = config.ambient + config.diffuse * diffuse
             rgb = np.clip(
                 intensity[..., None] * color + config.specular * spec[..., None], 0, 255

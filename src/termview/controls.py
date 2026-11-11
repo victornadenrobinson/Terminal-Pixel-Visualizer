@@ -16,8 +16,9 @@ except ImportError:
 class Controls:
     """Context-managed keyboard and mouse controls; inert on unsupported terminals."""
 
-    def __init__(self, mouse=True, stdin=None, stdout=None):
+    def __init__(self, mouse=True, stdin=None, stdout=None, screen=True):
         self.mouse = mouse
+        self.screen = screen
         self.stdin = stdin or sys.stdin
         self.stdout = stdout or sys.stdout
         self.saved = None
@@ -28,7 +29,7 @@ class Controls:
         if self.stdin.isatty() and termios is not None and tty is not None:
             self.saved = termios.tcgetattr(self.stdin.fileno())
             tty.setcbreak(self.stdin.fileno())
-        if self.stdout.isatty() and os.name != "nt":
+        if self.screen and self.stdout.isatty() and os.name != "nt":
             self.stdout.write("\x1b[?1049h\x1b[?25l")
             if self.mouse:
                 self.stdout.write("\x1b[?1000h\x1b[?1002h\x1b[?1006h")
@@ -40,13 +41,14 @@ class Controls:
             if self.saved is not None:
                 termios.tcsetattr(self.stdin.fileno(), termios.TCSADRAIN, self.saved)
         finally:
-            if self.stdout.isatty() and os.name != "nt":
+            if self.screen and self.stdout.isatty() and os.name != "nt":
                 self.stdout.write(
                     "\x1b[0m\x1b[?1000l\x1b[?1002l\x1b[?1006l\x1b[?25h\x1b[?1049l"
                 )
                 self.stdout.flush()
 
-    def poll(self):
+    def poll(self) -> list[tuple]:
+        """Return available key, arrow, drag, click and wheel events without blocking."""
         if self.saved is None:
             return []
         while select.select([self.stdin], [], [], 0)[0]:
@@ -54,7 +56,7 @@ class Controls:
             if not data:
                 break
             self.buffer += data.decode("utf-8", "replace")
-        events = []
+        events: list[tuple] = []
         while self.buffer:
             if self.buffer.startswith("\x1b[<"):
                 match = re.match(r"\x1b\[<(\d+);(\d+);(\d+)([Mm])", self.buffer)

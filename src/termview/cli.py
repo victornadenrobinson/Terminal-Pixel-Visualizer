@@ -82,7 +82,7 @@ def _structures(path, fmt, width, height, args, color):
         from ase.io import iread
     except ImportError as exc:
         raise ValueError(
-            "molecular formats require: pip install 'termview[ase]'"
+            "molecular formats require: pip install 'terminal-pixel-visualizer[ase]'"
         ) from exc
     frames = iter(iread(path, format=fmt, index=":"))
     first = next(frames, None)
@@ -104,7 +104,12 @@ def _structures(path, fmt, width, height, args, color):
                 + "\n"
             )
         controls = (
-            stack.enter_context(Controls(mouse=not args.no_mouse))
+            stack.enter_context(
+                Controls(
+                    mouse=not args.no_mouse and color != "plain",
+                    screen=color != "plain",
+                )
+            )
             if sys.stdout.isatty()
             else None
         )
@@ -156,19 +161,19 @@ def _structures(path, fmt, width, height, args, color):
             time.sleep(0.2)
             try:
                 current = list(iread(path, format=fmt, index=":"))
-            except (ValueError, EOFError):
+            except (OSError, ValueError, EOFError):
                 continue
             if len(current) < count:
                 count = 0
             for atoms in current[count:]:
                 show(atoms)
             count = len(current)
-    if controls:
+    if controls and color != "plain":
         cast = None
         show(atoms)
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
     """Entry point for automatic format detection and playback."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("dataset", help="molecular structure, trajectory, or numeric table")
@@ -191,6 +196,16 @@ def main(argv=None):
     height = args.height if args.height is not None else terminal.lines
     if width < 14 or height < 8 or args.fps <= 0:
         p.error("width >= 14, height >= 8 and fps > 0 are required")
+    if args.record:
+        same_path = os.path.realpath(args.record) == os.path.realpath(args.dataset)
+        if (
+            not same_path
+            and os.path.exists(args.record)
+            and os.path.exists(args.dataset)
+        ):
+            same_path = os.path.samefile(args.record, args.dataset)
+        if same_path:
+            p.error("--record must not overwrite the input dataset")
     color = color_support() if args.color == "auto" else args.color
     try:
         with open(args.dataset, "rb") as source:
@@ -235,7 +250,7 @@ def main(argv=None):
             print(_output_color(output.getvalue(), color), end="")
         else:
             raise ValueError("empty or unsupported dataset")
-    except (OSError, ValueError, IndexError) as exc:
+    except (OSError, ValueError, IndexError, KeyError) as exc:
         p.error(str(exc))
     except KeyboardInterrupt:
         pass
