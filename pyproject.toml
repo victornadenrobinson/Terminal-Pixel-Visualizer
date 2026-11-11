@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=78.1.1"]
+requires = ["setuptools>=78.1.1", "packaging>=24.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +9,7 @@ description = "Terminal-only molecular and data visualizations"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.23"]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "MIT"
 
 [project.optional-dependencies]
 ase = ["ase>=3.22"]

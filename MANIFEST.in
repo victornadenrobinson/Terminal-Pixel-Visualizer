@@ -1,0 +1,4 @@
+include CHANGELOG.md CONTRIBUTING.md
+recursive-include examples *.py *.xyz *.extxyz *.dataset *.cif *.vasp *.pdb *.csv *.dat *.txt
+recursive-include gallery *.png *.gif
+recursive-include tests *.py *.ansi
