@@ -99,3 +99,27 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for tests and checks. MolTUI is an
 inspiration for terminal molecular visualization; this implementation is
 independently written. [MolTUI is MIT-licensed](https://github.com/kszenes/moltui/blob/master/LICENSE);
 its licence and copyright notice must be retained if its code is incorporated.
+# Terminal-Pixel-Visualizer
+Software tool for viewing graphs, trajectories, images, animations as a pixelated terminal output.
+
+Goal:
+termmol/                    # pick a name
+├── pyproject.toml
+├── README.md               # GIF/screenshot at the top
+├── LICENSE                 # MIT or Apache-2.0
+├── CHANGELOG.md
+├── src/termmol/
+│   ├── __init__.py
+│   ├── raster.py           # sphere impostors, z-buffer
+│   ├── pack.py             # half-block / quad / braille packing
+│   ├── render2d.py         # slab view (from mdview.render)
+│   ├── render3d.py
+│   ├── plot.py             # from termplot
+│   ├── controls.py         # from termctl
+│   └── cli.py              # from toy_live: `termmol traj.extxyz --lit`
+├── examples/
+├── tests/
+└── .github/workflows/ci.yml
+
+To do:
+--Example images.
